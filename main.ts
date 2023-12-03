@@ -108,16 +108,22 @@ export default class ChatGPT_MD extends Plugin {
 					presence_penalty: presence_penalty,
 					frequency_penalty: frequency_penalty,
 					stream: stream,
-					stop: stop,
+					// stop: stop, // stop parameter can't be null with vision API
 					n: n,
 					// logit_bias: logit_bias, // not yet supported
 					// user: user, // not yet supported
 				};
 
+				if (model !== "gpt-4-vision-preview") {
+					// @ts-ignore
+					options.stop = stop;
+				}
+
 				const response = await streamManager.streamSSE(
 					editor,
 					this.settings.apiKey,
 					url,
+					// @ts-ignore
 					options,
 					this.settings.generateAtCursor,
 					this.getHeadingPrefix()
@@ -560,8 +566,9 @@ export default class ChatGPT_MD extends Plugin {
 					// create the image_url object
 					const image_url = `data:image/${fileType};base64,${fileContents}`;
 
-					// TODO: change the system command
-					// frontmatter.system_commands = ["You are a UX expert."];
+					frontmatter.system_commands = [
+						`You are an expert web developer and data analyst who specializes in building working website prototypes from low-fidelity wireframes. You may be presented with a request to build a website prototype from a screenshot, wireframe, or mockup. It is then your job to accept low-fidelity wireframes and then create a working prototype using the framework and languages the user requires, defaulting to using HTML, CSS, and JavaScript, and then finally sending back the results. Use unpkg or skypack to import any required dependencies. Use Google fonts to pull in any open source fonts you require. If you have any images, load them from Unsplash or use solid colored rectangles. Use your best judgement to determine what the user wants.You love design, you love your designers and want them to be happy. You have a high attention to visual detail. Incorporating their feedback and notes and producing working websites makes them happy.`,
+					];
 
 					// restructure messagesWithRoleAndMessage.
 					// messagesWithRoleAndMessage will be an array of objects with role and content properties.
@@ -593,9 +600,8 @@ export default class ChatGPT_MD extends Plugin {
 						},
 					});
 
-					// stop parameter can't be null, with vision api
 					// @ts-ignore
-					frontmatter.stop = 0;
+					frontmatter.temperature = 0;
 				}
 
 				if (frontmatter.system_commands) {
