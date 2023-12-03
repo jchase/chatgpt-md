@@ -236,13 +236,13 @@ export default class ChatGPT_MD extends Plugin {
 			const frontmatter = {
 				title: metaMatter?.title || view.file.basename,
 				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || "gpt-3.5-turbo",
+				model: metaMatter?.model || "gpt-4-1106-preview",
 				temperature: temperature,
 				top_p: metaMatter?.top_p || 1,
 				presence_penalty: metaMatter?.presence_penalty || 0,
 				frequency_penalty: metaMatter?.frequency_penalty || 0,
 				stream: shouldStream,
-				max_tokens: metaMatter?.max_tokens || 512,
+				max_tokens: metaMatter?.max_tokens || 4096,
 				stop: metaMatter?.stop || null,
 				n: metaMatter?.n || 1,
 				logit_bias: metaMatter?.logit_bias || null,
@@ -588,10 +588,15 @@ export default class ChatGPT_MD extends Plugin {
 						if (this.settings.autoInferTitle) {
 							const title = view.file.basename;
 
-							let messagesWithResponse = messages.concat(responseStr);
-							messagesWithResponse = messagesWithResponse.map((message) => {
-								return this.removeCommentsFromMessages(message);
-							});
+							let messagesWithResponse =
+								messages.concat(responseStr);
+							messagesWithResponse = messagesWithResponse.map(
+								(message) => {
+									return this.removeCommentsFromMessages(
+										message
+									);
+								}
+							);
 
 							if (
 								this.isTitleTimestampFormat(title) &&
