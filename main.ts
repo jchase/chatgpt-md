@@ -553,16 +553,13 @@ export default class ChatGPT_MD extends Plugin {
 					// first, determine the disk location of this Obsidian vault.
 					// @ts-ignore
 					const vaultPath = this.app.vault.adapter.basePath;
-					console.log(vaultPath);
 					const filePath =
 						vaultPath + "/" + image.split("[[")[1].split("]]")[0];
 					// read the contents of the file, and then base64 encode it.
 					const fs = require("fs");
 					const fileContents = fs.readFileSync(filePath, "base64");
-					console.log(fileContents);
 					// determine the correct image type (jpeg, png, etc.)
 					const fileType = image.split(".")[1];
-					console.log(fileType);
 					// create the image_url object
 					const image_url = `data:image/${fileType};base64,${fileContents}`;
 
@@ -625,11 +622,6 @@ export default class ChatGPT_MD extends Plugin {
 				if (Platform.isMobile) {
 					new Notice("[ChatGPT MD] Calling API");
 				}
-
-				console.log(
-					"messagesWithRoleAndMessage",
-					messagesWithRoleAndMessage
-				);
 
 				this.callOpenAIAPI(
 					streamManager,
