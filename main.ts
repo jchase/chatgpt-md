@@ -362,6 +362,47 @@ export default class ChatGPT_MD extends Plugin {
 		}
 	}
 
+	/**
+	 * Normally, the API call `content` key is a string.
+	 * For the vision api, `content` needs to be an
+	 * array of objects with type: 'text' or 'image_url'.
+	 */
+	convertMessagesToVisionFormat(
+		image_url: string,
+		messages: { role: string; content: string }[]
+	) {
+		if (!image_url) {
+			return messages;
+		}
+
+		const messagesInVisionFormat = messages.map(
+			(message: { role: string; content: string }) => {
+				return {
+					role: message.role,
+					content: [
+						{
+							type: "text",
+							text: message.content,
+						},
+					],
+				};
+			}
+		);
+
+		// find the first message, and to its new content array, prepend an object to `content` with type: 'image_url'
+		messagesInVisionFormat[0].content.unshift({
+			type: "image_url",
+			// TS complains that content doesn't match the shape of the messages before it, but that is expected by OpenAI here.
+			// @ts-ignore
+			image_url: {
+				url: image_url,
+				detail: "high",
+			},
+		});
+
+		return messagesInVisionFormat;
+	}
+
 	getHeadingPrefix() {
 		const headingLevel = this.settings.headingLevel;
 		if (headingLevel === 0) {
@@ -567,35 +608,14 @@ export default class ChatGPT_MD extends Plugin {
 						`You are an expert web developer and data analyst who specializes in building working website prototypes from low-fidelity wireframes. You may be presented with a request to build a website prototype from a screenshot, wireframe, or mockup. It is then your job to accept low-fidelity wireframes and then create a working prototype using the framework and languages the user requires, defaulting to using HTML, CSS, and JavaScript, and then finally sending back the results. Use unpkg or skypack to import any required dependencies. Use Google fonts to pull in any open source fonts you require. If you have any images, load them from Unsplash or use solid colored rectangles. Use your best judgement to determine what the user wants. You love design, you love your designers and want them to be happy. You have a high attention to visual detail and you always pay very close attention to design aspects such as iconography, layout, mobile responsiveness, systems of design, theming and color. Incorporating the user's feedback and notes and producing working websites makes them happy.`,
 					];
 
-					// restructure messagesWithRoleAndMessage.
-					// messagesWithRoleAndMessage will be an array of objects with role and content properties.
-					// content properties will currently be a string of text.
-					// we need to further nest the content key to be an array of objects in the shape of {type: 'text', text: <content>}
+					// restructure messagesWithRoleAndMessage into the format
+					// the vision API expects.
 					// @ts-ignore
-					messagesWithRoleAndMessage = messagesWithRoleAndMessage.map(
-						(message) => {
-							return {
-								role: message.role,
-								content: [
-									{
-										type: "text",
-										text: message.content,
-									},
-								],
-							};
-						}
-					);
-
-					// find the first message with role user on messagesWithRoleAndMessage,
-					// and append an object to `content` with type: 'image_url'
-					// @ts-ignore
-					messagesWithRoleAndMessage[0].content.unshift({
-						type: "image_url",
-						image_url: {
-							url: image_url,
-							detail: "high",
-						},
-					});
+					messagesWithRoleAndMessage =
+						this.convertMessagesToVisionFormat(
+							image_url,
+							messagesWithRoleAndMessage
+						);
 
 					// @ts-ignore
 					frontmatter.temperature = 0;
