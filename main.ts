@@ -236,7 +236,7 @@ export default class ChatGPT_MD extends Plugin {
 			const frontmatter = {
 				title: metaMatter?.title || view.file.basename,
 				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || "gpt-4-1106-preview",
+				model: metaMatter?.model || "gpt-4-vision-preview",
 				temperature: temperature,
 				top_p: metaMatter?.top_p || 1,
 				presence_penalty: metaMatter?.presence_penalty || 0,
