@@ -387,9 +387,9 @@ export default class ChatGPT_MD extends Plugin {
 		new Notice("[ChatGPT] Inferring title from messages...");
 
 		try {
-			if (messages.length < 2) {
+			if (messages.length < 1) {
 				new Notice(
-					"Not enough messages to infer title. Minimum 2 messages."
+					"Not enough messages to infer title. Minimum 1 message."
 				);
 				return;
 			}
