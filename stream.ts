@@ -4,7 +4,16 @@ import { unfinishedCodeBlock } from "helpers";
 
 export interface OpenAIStreamPayload {
 	model: string;
-	messages: Array<{ role: string; content: string }>;
+	messages: Array<{
+		role: string;
+		content:
+			| string
+			| {
+					type: string;
+					text?: string;
+					image_url?: { url: string; detail: string };
+			  }[];
+	}>;
 	temperature: number;
 	top_p: number;
 	presence_penalty: number;
@@ -25,7 +34,7 @@ export class StreamManager {
 
 	stopStreaming = () => {
 		if (Platform.isMobile) {
-			new Notice("[ChatGPT MD] Mobile not supported.")
+			new Notice("[ChatGPT MD] Mobile not supported.");
 			return;
 		}
 		if (this.sse) {
@@ -163,7 +172,6 @@ export class StreamManager {
 						resolve(txt);
 					}
 				});
-
 
 				source.addEventListener("error", (e: any) => {
 					try {

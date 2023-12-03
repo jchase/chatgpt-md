@@ -72,7 +72,16 @@ export default class ChatGPT_MD extends Plugin {
 	async callOpenAIAPI(
 		streamManager: StreamManager,
 		editor: Editor,
-		messages: { role: string; content: string }[],
+		messages: {
+			role: string;
+			content:
+				| string
+				| {
+						type: string;
+						text?: string;
+						image_url?: { url: string; detail: string };
+				  }[];
+		}[],
 		model = "gpt-3.5-turbo",
 		max_tokens = 250,
 		temperature = 0.3,
@@ -236,7 +245,7 @@ export default class ChatGPT_MD extends Plugin {
 			const frontmatter = {
 				title: metaMatter?.title || view.file.basename,
 				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || "gpt-4-vision-preview",
+				model: metaMatter?.model || "gpt-4-1106-preview",
 				temperature: temperature,
 				top_p: metaMatter?.top_p || 1,
 				presence_penalty: metaMatter?.presence_penalty || 0,
@@ -506,6 +515,8 @@ export default class ChatGPT_MD extends Plugin {
 				// get frontmatter
 				const frontmatter = this.getFrontmatter(view);
 
+				let model = frontmatter.model;
+
 				// get messages
 				const bodyWithoutYML = this.removeYMLFromMessage(
 					editor.getValue()
@@ -515,9 +526,77 @@ export default class ChatGPT_MD extends Plugin {
 					return this.removeCommentsFromMessages(message);
 				});
 
-				const messagesWithRoleAndMessage = messages.map((message) => {
+				let messagesWithRoleAndMessage = messages.map((message) => {
 					return this.extractRoleAndMessage(message);
 				});
+
+				// further determine if there is a screenshot or image in the message.
+				// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
+				const imageRegex = /!\[\[(.*?)\]\]/g;
+				const imageMatch = bodyWithoutYML.match(imageRegex);
+				if (imageMatch) {
+					// switch to the vision model.
+					model = "gpt-4-vision-preview";
+
+					// get first image only.
+					const image = imageMatch[0];
+					console.log(image);
+
+					// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
+					// but we must find the actual file in our filesystem, read it, and base64 encode it.
+					// first, determine the disk location of this Obsidian vault.
+					// @ts-ignore
+					const vaultPath = this.app.vault.adapter.basePath;
+					console.log(vaultPath);
+					const filePath =
+						vaultPath + "/" + image.split("[[")[1].split("]]")[0];
+					// read the contents of the file, and then base64 encode it.
+					const fs = require("fs");
+					const fileContents = fs.readFileSync(filePath, "base64");
+					console.log(fileContents);
+					// determine the correct image type (jpeg, png, etc.)
+					const fileType = image.split(".")[1];
+					console.log(fileType);
+					// create the image_url object
+					const image_url = `data:image/${fileType};base64,${fileContents}`;
+
+					// TODO: change the system command
+					// frontmatter.system_commands = ["You are a UX expert."];
+
+					// restructure messagesWithRoleAndMessage.
+					// messagesWithRoleAndMessage will be an array of objects with role and content properties.
+					// content properties will currently be a string of text.
+					// we need to further nest the content key to be an array of objects in the shape of {type: 'text', text: <content>}
+					// @ts-ignore
+					messagesWithRoleAndMessage = messagesWithRoleAndMessage.map(
+						(message) => {
+							return {
+								role: message.role,
+								content: [
+									{
+										type: "text",
+										text: message.content,
+									},
+								],
+							};
+						}
+					);
+
+					// find the first message with role user on messagesWithRoleAndMessage,
+					// and append an object to `content` with type: 'image_url'
+					// @ts-ignore
+					messagesWithRoleAndMessage[0].content.unshift({
+						type: "image_url",
+						image_url: {
+							url: image_url,
+							detail: "high",
+						},
+					});
+
+					// stop parameter can't be null, with vision api
+					// @ts-ignore
+					frontmatter.stop = 0;
+				}
 
 				if (frontmatter.system_commands) {
 					const systemCommands = frontmatter.system_commands;
@@ -541,11 +620,16 @@ export default class ChatGPT_MD extends Plugin {
 					new Notice("[ChatGPT MD] Calling API");
 				}
 
+				console.log(
+					"messagesWithRoleAndMessage",
+					messagesWithRoleAndMessage
+				);
+
 				this.callOpenAIAPI(
 					streamManager,
 					editor,
 					messagesWithRoleAndMessage,
-					frontmatter.model,
+					model,
 					frontmatter.max_tokens,
 					frontmatter.temperature,
 					frontmatter.top_p,
