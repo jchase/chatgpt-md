@@ -579,7 +579,7 @@ export default class ChatGPT_MD extends Plugin {
 
 				// further determine if there is a screenshot or image in the message.
 				// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
-				const imageRegex = /!\[\[(.*?)\]\]/g;
+				const imageRegex = /!\[\[(.*?)\.(jpg|jpeg|png|gif|webp|tif|bmp|svg)\]\]/g;
 				const imageMatch = bodyWithoutYML.match(imageRegex);
 				if (imageMatch) {
 					// switch to the vision model.
