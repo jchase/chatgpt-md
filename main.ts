@@ -578,7 +578,7 @@ export default class ChatGPT_MD extends Plugin {
 				});
 
 				// further determine if there is a screenshot or image in the message.
-				// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
+				// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
 				const imageRegex = /!\[\[(.*?)\.(jpg|jpeg|png|gif|webp|tif|bmp|svg)\]\]/g;
 				const imageMatch = bodyWithoutYML.match(imageRegex);
 				if (imageMatch) {
@@ -589,7 +589,7 @@ export default class ChatGPT_MD extends Plugin {
 					const image = imageMatch[0];
 					console.log(image);
 
-					// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
+					// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
 					// but we must find the actual file in our filesystem, read it, and base64 encode it.
 					// first, determine the disk location of this Obsidian vault.
 					// @ts-ignore
