@@ -2,6 +2,19 @@ import { Editor, Notice, Platform } from "obsidian";
 import { SSE } from "sse";
 import { unfinishedCodeBlock } from "helpers";
 
+export interface MyCustomEvent extends CustomEvent {
+	data?: string;
+	id?: string | null;
+}
+
+export type EType = {
+	id: string | null;
+	retry: string | null;
+	data: string;
+	event: string;
+	[key: string]: string | null;
+};
+
 export interface OpenAIStreamPayload {
 	model: string;
 	messages: Array<{
@@ -67,6 +80,45 @@ export class StreamManager {
 				});
 
 				this.sse = source;
+
+				/**
+				 * Override SSE's _parseEventChunk to parse the event data as JSON.
+				 * SSE has a problem with GPT 2024 models because the data comes in too fast.
+				 */
+				this.sse._parseEventChunk = function (chunk: string) {
+					if (!chunk || chunk.length === 0) {
+						return null;
+					}
+					const e: EType = {
+						id: null,
+						retry: null,
+						data: "",
+						event: "message",
+					};
+					chunk.split(/\n|\r\n|\r/).forEach(
+						function (line: string) {
+							line = line.trimRight();
+							const index = line.indexOf(this.FIELD_SEPARATOR);
+							if (index <= 0) {
+								return;
+							}
+							const field = line.substring(0, index);
+							if (!(field in e)) {
+								return;
+							}
+							const value = line.substring(index + 1).trimLeft();
+							/* Modification here - don't look for the data key and append.  Just set the value */
+							e[field] = value;
+						}.bind(this)
+					);
+
+					const event: MyCustomEvent = new CustomEvent(
+						e.event
+					) as MyCustomEvent;
+					event.data = e.data;
+					event.id = e.id;
+					return event;
+				};
 
 				let txt = "";
 				let initialCursorPosCh = editor.getCursor().ch;
