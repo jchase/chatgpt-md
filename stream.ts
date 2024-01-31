@@ -3,16 +3,16 @@ import { SSE } from "sse";
 import { unfinishedCodeBlock } from "helpers";
 
 export interface MyCustomEvent extends CustomEvent {
-	data?: string;
+	data?: string[];
 	id?: string | null;
 }
 
 export type EType = {
 	id: string | null;
 	retry: string | null;
-	data: string;
+	data: string[];
 	event: string;
-	[key: string]: string | null;
+	[key: string]: string | string[] | null;
 };
 
 export interface OpenAIStreamPayload {
@@ -83,7 +83,10 @@ export class StreamManager {
 
 				/**
 				 * Override SSE's _parseEventChunk to parse the event data as JSON.
-				 * SSE has a problem with GPT 2024 models because the data comes in too fast.
+				 * Only change is that instead of concatenating the data, we push it to an array.
+				 * Then, we loop over that array at parse time.
+				 * This old SSE library has a problem with newer GPT 2024 models.
+				 * OpenAI recommends using their own NodeJS module for SSE ... now I know why.
 				 */
 				this.sse._parseEventChunk = function (chunk: string) {
 					if (!chunk || chunk.length === 0) {
@@ -92,7 +95,7 @@ export class StreamManager {
 					const e: EType = {
 						id: null,
 						retry: null,
-						data: "",
+						data: [],
 						event: "message",
 					};
 					chunk.split(/\n|\r\n|\r/).forEach(
@@ -107,8 +110,11 @@ export class StreamManager {
 								return;
 							}
 							const value = line.substring(index + 1).trimLeft();
-							/* Modification here - don't look for the data key and append.  Just set the value */
-							e[field] = value;
+							if (field === "data") {
+								e[field].push(value);
+							} else {
+								e[field] = value;
+							}
 						}.bind(this)
 					);
 
@@ -144,35 +150,37 @@ export class StreamManager {
 
 				source.addEventListener("message", (e: any) => {
 					if (e.data != "[DONE]") {
-						const payload = JSON.parse(e.data);
-						const text = payload.choices[0].delta.content;
+						e.data.forEach((message: string) => {
+							const payload = JSON.parse(message);
+							const text = payload.choices[0].delta.content;
 
-						// if text undefined, then do nothing
-						if (!text) {
-							return;
-						}
+							// if text undefined, then do nothing
+							if (!text) {
+								return;
+							}
 
-						const cursor = editor.getCursor();
-						const convPos = editor.posToOffset(cursor);
+							const cursor = editor.getCursor();
+							const convPos = editor.posToOffset(cursor);
 
-						// @ts-ignore
-						const cm6 = editor.cm;
-						const transaction = cm6.state.update({
-							changes: {
-								from: convPos,
-								to: convPos,
-								insert: text,
-							},
+							// @ts-ignore
+							const cm6 = editor.cm;
+							const transaction = cm6.state.update({
+								changes: {
+									from: convPos,
+									to: convPos,
+									insert: text,
+								},
+							});
+							cm6.dispatch(transaction);
+
+							txt += text;
+
+							const newCursor = {
+								line: cursor.line,
+								ch: cursor.ch + text.length,
+							};
+							editor.setCursor(newCursor);
 						});
-						cm6.dispatch(transaction);
-
-						txt += text;
-
-						const newCursor = {
-							line: cursor.line,
-							ch: cursor.ch + text.length,
-						};
-						editor.setCursor(newCursor);
 					} else {
 						source.close();
 						console.log("[ChatGPT MD] SSE Closed");
@@ -206,9 +214,7 @@ export class StreamManager {
 								ch: Infinity,
 							});
 						} else {
-							new Notice(
-								"[ChatGPT MD] Text pasted at cursor may leave artifacts. Please remove them manually. ChatGPT MD cannot safely remove text when pasting at cursor."
-							);
+							new Notice("[ChatGPT MD] Completion done.");
 						}
 
 						resolve(txt);
