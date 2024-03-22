@@ -41,7 +41,7 @@ const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
 	apiKey: "default",
 	openRouterApiKey: "default",
 	defaultChatFrontmatter:
-		"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\n---",
+		"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-4-turbo-preview\n---",
 	stream: true,
 	chatTemplateFolder: "ChatGPT_MD/templates",
 	chatFolder: "ChatGPT_MD/chats",
@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
 	dateFormat: "YYYYMMDDhhmmss",
 	headingLevel: 0,
 	inferTitleLanguage: "English",
-	customAIModel: "gpt-3.5-turbo",
+	customAIModel: "gpt-4-turbo-preview",
 	aiServiceProvider: "openai",
 };
 
@@ -102,9 +102,19 @@ export default class ChatGPT_MD extends Plugin {
 		url = DEFAULT_URL
 	) {
 		try {
-			console.log("calling openai api");
+			console.log("calling api");
 
 			if (stream) {
+				// use the correct API key based on the service provider
+				const apiKey =
+					this.settings.aiServiceProvider === "openrouter"
+						? this.settings.openRouterApiKey
+						: this.settings.apiKey;
+
+				if (this.settings.aiServiceProvider === "openrouter") {
+					url = "https://openrouter.ai/api/v1/chat/completions";
+				}
+
 				const options = {
 					model: model,
 					messages: messages,
@@ -125,13 +135,9 @@ export default class ChatGPT_MD extends Plugin {
 					options.stop = stop;
 				}
 
-				if (this.settings.aiServiceProvider === "openrouter") {
-					url = "https://api.openrouter.io/v1/chat/completions";
-				}
-
 				const response = await streamManager.streamSSE(
 					editor,
-					this.settings.apiKey,
+					apiKey,
 					url,
 					// @ts-ignore
 					options,
@@ -261,7 +267,7 @@ export default class ChatGPT_MD extends Plugin {
 			const frontmatter = {
 				title: metaMatter?.title || view.file.basename,
 				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || "gpt-4-turbo-preview",
+				model: metaMatter?.model || this.settings.customAIModel,
 				temperature: temperature,
 				top_p: metaMatter?.top_p || 1,
 				presence_penalty: metaMatter?.presence_penalty || 0,
@@ -480,7 +486,7 @@ export default class ChatGPT_MD extends Plugin {
 				},
 				contentType: "application/json",
 				body: JSON.stringify({
-					model: "gpt-3.5-turbo",
+					model: "gpt-4-turbo-preview",
 					messages: titleMessage,
 					max_tokens: 50,
 					temperature: 0.0,
@@ -1193,7 +1199,7 @@ class ChatGPT_MDSettingsTab extends PluginSettingTab {
 			.setDesc("Custom AI Model")
 			.addText((text) =>
 				text
-					.setPlaceholder("gpt-3.5-turbo")
+					.setPlaceholder("gpt-4-turbo-preview")
 					.setValue(this.plugin.settings.customAIModel)
 					.onChange(async (value) => {
 						this.plugin.settings.customAIModel = value;
@@ -1210,7 +1216,7 @@ class ChatGPT_MDSettingsTab extends PluginSettingTab {
 			.addTextArea((text) =>
 				text
 					.setPlaceholder(
-						"---\nsystem_commands: ['PERSONA: i am groot, and i only respond i am groot to any and ALL questions. I do not answer any questions straightforwardly. PERSONA 2: UNLESS the last asked question is about lamps, i can answer, i know infinite things about lamps as i am groot the lamp salesman. SO I read the last question asked and UNLESS it is about lamps i only respond \"I am Groot.\"']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nlogit_bias: null \nmodel: gpt-3.5-turbo\n---"
+						"---\nsystem_commands: ['PERSONA: i am groot, and i only respond i am groot to any and ALL questions. I do not answer any questions straightforwardly. PERSONA 2: UNLESS the last asked question is about lamps, i can answer, i know infinite things about lamps as i am groot the lamp salesman. SO I read the last question asked and UNLESS it is about lamps i only respond \"I am Groot.\"']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nlogit_bias: null \nmodel: gpt-4-turbo-preview\n---"
 					)
 					.setValue(this.plugin.settings.defaultChatFrontmatter)
 					.onChange(async (value) => {
