@@ -23,19 +23,23 @@ import {
 
 interface ChatGPT_MDSettings {
 	apiKey: string;
+	openRouterApiKey: string;
 	defaultChatFrontmatter: string;
 	stream: boolean;
 	chatTemplateFolder: string;
 	chatFolder: string;
 	generateAtCursor: boolean;
-	autoInferTitle: boolean;
+	autoInferTitle: false;
 	dateFormat: string;
 	headingLevel: number;
 	inferTitleLanguage: string;
+	customAIModel: string;
+	aiServiceProvider: string;
 }
 
 const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
 	apiKey: "default",
+	openRouterApiKey: "default",
 	defaultChatFrontmatter:
 		"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\n---",
 	stream: true,
@@ -46,6 +50,8 @@ const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
 	dateFormat: "YYYYMMDDhhmmss",
 	headingLevel: 0,
 	inferTitleLanguage: "English",
+	customAIModel: "gpt-3.5-turbo",
+	aiServiceProvider: "openai",
 };
 
 const DEFAULT_URL = `https://api.openai.com/v1/chat/completions`;
@@ -82,7 +88,7 @@ export default class ChatGPT_MD extends Plugin {
 						image_url?: { url: string; detail: string };
 				  }[];
 		}[],
-		model = "gpt-3.5-turbo",
+		model = this.settings.customAIModel,
 		max_tokens = 250,
 		temperature = 0.3,
 		top_p = 1,
@@ -117,6 +123,10 @@ export default class ChatGPT_MD extends Plugin {
 				if (model !== "gpt-4-vision-preview") {
 					// @ts-ignore
 					options.stop = stop;
+				}
+
+				if (this.settings.aiServiceProvider === "openrouter") {
+					url = "https://api.openrouter.io/v1/chat/completions";
 				}
 
 				const response = await streamManager.streamSSE(
@@ -562,7 +572,7 @@ export default class ChatGPT_MD extends Plugin {
 				// get frontmatter
 				const frontmatter = this.getFrontmatter(view);
 
-				let model = frontmatter.model;
+				let model = frontmatter.model || this.settings.customAIModel;
 
 				// get messages
 				const bodyWithoutYML = this.removeYMLFromMessage(
@@ -579,11 +589,14 @@ export default class ChatGPT_MD extends Plugin {
 
 				// further determine if there is a screenshot or image in the message.
 				// the image will be in the format of ![[s20231203a15313 am-20231203.jpg]]
-				const imageRegex = /!\[\[(.*?)\.(jpg|jpeg|png|gif|webp|tif|bmp|svg)\]\]/g;
+				const imageRegex =
+					/!\[\[(.*?)\.(jpg|jpeg|png|gif|webp|tif|bmp|svg)\]\]/g;
 				const imageMatch = bodyWithoutYML.match(imageRegex);
 				if (imageMatch) {
-					// switch to the vision model.
-					model = "gpt-4-vision-preview";
+					// switch to the vision model, only if the aiServiceProvider is "openai".
+					if (this.settings.aiServiceProvider === "openai") {
+						model = "gpt-4-vision-preview";
+					}
 
 					// get first image only.
 					const image = imageMatch[0];
@@ -1143,6 +1156,47 @@ class ChatGPT_MDSettingsTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.apiKey)
 					.onChange(async (value) => {
 						this.plugin.settings.apiKey = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("OpenRouter API Key")
+			.setDesc("API Key for OpenRouter")
+			.addText((text) =>
+				text
+					.setPlaceholder("some-api-key")
+					.setValue(this.plugin.settings.openRouterApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.openRouterApiKey = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("AI Service Provider")
+			.setDesc("AI Service Provider")
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					openai: "OpenAI",
+					openrouter: "OpenRouter",
+				});
+				dropdown.setValue(this.plugin.settings.aiServiceProvider);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.aiServiceProvider = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Custom AI Model")
+			.setDesc("Custom AI Model")
+			.addText((text) =>
+				text
+					.setPlaceholder("gpt-3.5-turbo")
+					.setValue(this.plugin.settings.customAIModel)
+					.onChange(async (value) => {
+						this.plugin.settings.customAIModel = value;
 						await this.plugin.saveSettings();
 					})
 			);
