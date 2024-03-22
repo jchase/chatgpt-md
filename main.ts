@@ -29,7 +29,7 @@ interface ChatGPT_MDSettings {
 	chatTemplateFolder: string;
 	chatFolder: string;
 	generateAtCursor: boolean;
-	autoInferTitle: false;
+	autoInferTitle: boolean;
 	dateFormat: string;
 	headingLevel: number;
 	inferTitleLanguage: string;
