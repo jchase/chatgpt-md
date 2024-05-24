@@ -89,11 +89,11 @@ export default class ChatGPT_MD extends Plugin {
 				  }[];
 		}[],
 		model = this.settings.customAIModel,
-		max_tokens = 250,
-		temperature = 0.3,
+		max_tokens = 0,
+		temperature = 1,
 		top_p = 1,
-		presence_penalty = 0.5,
-		frequency_penalty = 0.5,
+		presence_penalty = 0,
+		frequency_penalty = 0,
 		stream = true,
 		stop: string[] | null = null,
 		n = 1,
@@ -262,7 +262,7 @@ export default class ChatGPT_MD extends Plugin {
 			const temperature =
 				metaMatter?.temperature !== undefined
 					? metaMatter.temperature
-					: 0.3;
+					: 1;
 
 			const frontmatter = {
 				title: metaMatter?.title || view.file.basename,
